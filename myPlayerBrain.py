@@ -17,8 +17,8 @@ from debug import printrap
 
 from xml.etree import ElementTree as ET
 
-NAME = "Guido van Rossum"
-SCHOOL = "Windward U."
+NAME = "Tejas and Neil"
+SCHOOL = "U of T"
 
 class MyPlayerBrain(object):
     """The Python AI class.  This class must have the methods setup and gameStatus."""
