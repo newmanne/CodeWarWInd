@@ -55,8 +55,8 @@ class Player(object):
         self.name = element.get('name')
         self.limo = Limo( (int(element.get('limo-x')), int(element.get('limo-y'))),
                            int(element.get('limo-angle')))
-        self.pickup = pickup
-        self.passengersDelivered = passes
+        self.pickup = pickup if pickup else []
+        self.passengersDelivered = passes if passes else []
         self.score = score
 
     def __repr__(self):
@@ -69,7 +69,7 @@ class Player(object):
         return "%s; numDelivered:%r" % (self.name, len(self.passengersDelivered))
 
     def __eq__(self, other):
-        if instanceof(other, Player) and other.guid == self.guid:
+        if isinstance(other, Player) and other.guid == self.guid:
             return True
         else:
             return False
@@ -92,7 +92,7 @@ class Limo(object):
         """
         self.tilePosition = tilePosition
         self.angle = angle
-        self.path = path
+        self.path = path if path else []
         self.passenger = passenger
 
     def __str__(self):
@@ -165,7 +165,7 @@ def updatePlayersFromXml (players, passengers, element):
         else:
             player.limo.passenger = None
         # add most recent delivery if this is the first time we're told.
-        psgrName = element.get('last-delivered')
+        psgrName = playerElement.get('last-delivered')
         if psgrName is not None:
             passenger = [p for p in passengers if p.name == psgrName][0]
             if passenger not in player.passengersDelivered:
@@ -199,11 +199,19 @@ def updatePassengersFromXml (passengers, companies, element):
                 passenger.route.remove(passenger.destination)
         # set props based on waiting, travelling, done
         switch = psgrElement.get('status')
+		
         if   switch == "lobby":
-            passenger.lobby = [c for c in companies if c.name == psgrElement.get('lobby')][0]
-            passenger.car = None
+			cmpny = [c for c in companies if c.name == psgrElement.get('lobby')][0]
+			if passenger.lobby != cmpny:
+				passenger.lobby = cmpny
+				if not(passenger in passenger.lobby.passengers):
+								passenger.lobby.passengers.append(passenger)
+			passenger.car = None
+			
         elif switch == "travelling":
-            passenger.lobby = None
+			if passenger.lobby != None:
+				passenger.lobby.passengers.remove(passenger)
+				passenger.lobby = None
             # passenger.car set in Player update
         elif switch == "done":
             debug.trap()

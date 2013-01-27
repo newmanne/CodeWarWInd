@@ -137,8 +137,8 @@ class Framework(object):
                 printrap("ERROR: bad message (XML) from server - root node %r" % name)
 
             turnTime = time.clock() - startTime
-            prefix = '' if turnTime < .8 else "WARNING - "
-            prefix = "!DANGER! - " if turnTime >= 1 else prefix
+            prefix = '' if turnTime < 0.8 else "WARNING - "
+            prefix = "!DANGER! - " if turnTime >= 1.2 else prefix
             print(prefix + "turn took %r seconds" % turnTime)
             #TODO: logging
         except Exception as e:

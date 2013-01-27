@@ -8,6 +8,7 @@ Created on January 15, 2013
 
 No copyright claimed - do anything you want with this code.
 """
+from __future__ import division
 
 import random
 import simpleAStar
@@ -15,10 +16,14 @@ from framework import sendOrders
 from api import units, map
 from debug import printrap
 
-from xml.etree import ElementTree as ET
 
-NAME = "Tejas and Neil"
-SCHOOL = "U of T"
+
+from xml.etree import ElementTree as ET
+import traceback
+import __builtin__
+
+NAME = "Tejas, Zongyi, Cheng, Neil Python"
+SCHOOL = "Uoft"
 
 class MyPlayerBrain(object):
     """The Python AI class.  This class must have the methods setup and gameStatus."""
@@ -56,7 +61,7 @@ class MyPlayerBrain(object):
         self.passengers = passengers
         self.client = client
 
-        self.pickup = pickup = self.allPickups(me, passengers)
+        self.pickup = pickup = self.allPickups(me, passengers, self.players)
 
         # get the path from where we are to the dest.
         path = self.calculatePathPlus1(me, pickup[0].lobby.busStop)
@@ -93,32 +98,33 @@ class MyPlayerBrain(object):
             pickup = []
             if    status == "UPDATE":
                 return
-            elif (status == "PASSENGER_NO_ACTION" or
-                  status == "NO_PATH"):
+            elif ((status == "PASSENGER_NO_ACTION" or
+                  status == "NO_PATH") and playerStatus == self.me):
                 if playerStatus.limo.passenger is None:
-                    pickup = self.allPickups(playerStatus, passengers)
+                    pickup = self.allPickups(self.me, passengers, players)
                     ptDest = pickup[0].lobby.busStop
                 else:
                     ptDest = playerStatus.limo.passenger.destination.busStop
             elif (status == "PASSENGER_DELIVERED" or
                   status == "PASSENGER_ABANDONED"):
-                pickup = self.allPickups(playerStatus, passengers)
+                pickup = self.allPickups(self.me, passengers, players)
                 ptDest = pickup[0].lobby.busStop
             elif  status == "PASSENGER_REFUSED":
-                ptDest = random.choice(filter(lambda c: c != playerStatus.limo.passenger.destination,
-                    self.companies)).busStop
+                pickup = self.allPickups(self.me, passengers, players)
+                ptDest = pickup[0].lobby
             elif (status == "PASSENGER_DELIVERED_AND_PICKED_UP" or
                   status == "PASSENGER_PICKED_UP"):
-                pickup = self.allPickups(playerStatus, passengers)
-                ptDest = playerStatus.limo.passenger.destination.busStop
+                pickup = self.allPickups(self.me, passengers, players)
+                ptDest = self.me.limo.passenger.destination.busStop
             else:
                 raise TypeError("unknown status %r", status)
 
             # get the path from where we are to the dest.
-            path = self.calculatePathPlus1(playerStatus, ptDest)
-
+            path = self.calculatePathPlus1(self.me, ptDest)
+            
             sendOrders(self, "move", path, pickup)
         except Exception as e:
+            traceback.print_exc()
             printrap ("somefin' bad, foo'!")
             raise e
 
@@ -129,11 +135,38 @@ class MyPlayerBrain(object):
         if len(path) > 1:
             path.append(path[-2])
         return path
-
-    def allPickups (self, me, passengers):
+    
+    def easierForYou(self, passenger, me, otherAi):
+        toPassenger = len(simpleAStar.calculatePath(self.gameMap, me.limo.tilePosition, passenger.lobby.busStop))
+        otherAiToPassenger = len(simpleAStar.calculatePath(self.gameMap, otherAi.limo.tilePosition, passenger.lobby.busStop))
+        return True if toPassenger < otherAiToPassenger else False
+    
+    def allPickups (self, me, passengers, players):
+            def distanceFromUs(p):
+                toPassenger = len(simpleAStar.calculatePath(self.gameMap, me.limo.tilePosition, p.lobby.busStop))
+                toDest = len(simpleAStar.calculatePath(self.gameMap, p.lobby.busStop, p.destination.busStop))
+                return toPassenger + toDest
+            def keyFunc(p):
+                return (100*p.pointsDelivered)/distanceFromUs(p)
+            
             pickup = [p for p in passengers if (not p in me.passengersDelivered and
                                                 p != me.limo.passenger and
                                                 p.car is None and
                                                 p.lobby is not None and p.destination is not None)]
-            random.shuffle(pickup)
+            tempPickup = filter(lambda x: len([y for y in x.enemies if y in x.destination.passengers]) ==0, pickup)
+            if len(tempPickup) > 0:
+                pickup = tempPickup
+            """Not Sure about this Part Yet"""
+#             for player in players:
+#                 tempPickup = filter(lambda x: self.easierForYou(x, me, player), pickup)
+#                 if len(tempPickup) > 0:
+#                     pickup = tempPickup
+            values = __builtin__.map(lambda x: (x, keyFunc(x)), pickup)
+            values = sorted(values, key=lambda x: x[1], reverse=True)
+            pickup = __builtin__.map(lambda x: x[0], values)
+            print values                    
             return pickup
+        
+    def sortPickUps(self, me, passengers, players):
+        pass
+            
